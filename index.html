@@ -1196,47 +1196,50 @@ function _doSubmit() {
   const SITE_URL = 'https://grupojosealves.sharepoint.com/sites/REFRESCOSBANDEIRANTES-DigitalGJATeste';
   const LIST_NAME = 'Visitas PDV';
 
-  const sendData = () => {
-    visitados[clienteAtual.id] = { ts: payload.timestamp, resumo: respostas };
-    localStorage.setItem('visitados_jun26', JSON.stringify(visitados));
-    
-    const minhaBase = CLIENTES.filter(c => c.rota === rotaSelecionada);
-    const totalVisit = minhaBase.filter(c => visitados[c.id]).length;
-    const totalPend = minhaBase.filter(c => !visitados[c.id] && c.base_foco).length;
-    
-    document.getElementById('successMsg').textContent = `${clienteAtual.nome} — ${Object.values(respostas).filter(Boolean).length} respostas registradas.`;
-    document.getElementById('statVisit').textContent = totalVisit;
-    document.getElementById('statPend').textContent = totalPend;
-    
-    btn.disabled = false;
-    btn.textContent = 'Enviar validação';
-    showStep('step3');
-    window.scrollTo(0,0);
-    console.log('Payload Power Automate:', JSON.stringify(payload, null, 2));
-  };
-
-  // Enviar para Google Sheets — sendData sempre executa independente do resultado
   const GAS_URL = 'https://script.google.com/macros/s/AKfycbz5UnbzjUm2McNytyodZ_I7-vv6Ckv58nK4tBgigQ4IkmW5r8gtoXslj65B1xKmohIxoA/exec';
   const urlWithData = GAS_URL + '?payload=' + encodeURIComponent(JSON.stringify(payload));
 
-  // Garantir que sendData executa após 2s independente do resultado da chamada
-  var enviado = false;
-  function garantirEnvio() {
-    if (!enviado) { enviado = true; sendData(); }
+  // sendData definido antes do setTimeout para garantir escopo
+  var _enviado = false;
+  var _btn = btn;
+  var _clienteNome = clienteAtual.nome;
+  var _respostas = respostas;
+  var _rota = rotaSelecionada;
+
+  function sendData() {
+    if (_enviado) return;
+    _enviado = true;
+    visitados[clienteAtual.id] = { ts: payload.timestamp, resumo: _respostas };
+    localStorage.setItem('visitados_jun26', JSON.stringify(visitados));
+    var minhaBase = CLIENTES.filter(function(c) { return c.rota === _rota; });
+    var totalVisit = minhaBase.filter(function(c) { return visitados[c.id]; }).length;
+    var totalPend = minhaBase.filter(function(c) { return !visitados[c.id] && c.base_foco; }).length;
+    var msgEl = document.getElementById('successMsg');
+    if (msgEl) msgEl.textContent = _clienteNome + ' — dados registrados.';
+    var svEl = document.getElementById('statVisit');
+    if (svEl) svEl.textContent = totalVisit;
+    var spEl = document.getElementById('statPend');
+    if (spEl) spEl.textContent = totalPend;
+    _btn.disabled = false;
+    _btn.textContent = 'Enviar validação';
+    showStep('step3');
+    window.scrollTo(0, 0);
   }
-  setTimeout(garantirEnvio, 2000);
+
+  // Garantir confirmação após 2s independente do resultado do envio
+  setTimeout(sendData, 2000);
 
   // Tentar enviar via fetch
   try {
     fetch(urlWithData, { method: 'GET', mode: 'no-cors' })
-      .then(function() { garantirEnvio(); })
-      .catch(function() { garantirEnvio(); });
-  } catch(e) { garantirEnvio(); }
+      .then(function() { sendData(); })
+      .catch(function() { sendData(); });
+  } catch(e) { sendData(); }
 
   // Também via img tag em paralelo
   try {
     var img = new Image();
-    img.onload = img.onerror = function() { garantirEnvio(); };
+    img.onload = img.onerror = function() { sendData(); };
     img.src = urlWithData + '&t=' + Date.now();
   } catch(e) {}
 }
