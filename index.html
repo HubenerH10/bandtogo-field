@@ -417,8 +417,7 @@ body::before{content:'';position:fixed;inset:0;z-index:0;pointer-events:none;
 <div class="step" id="step2" style="background:var(--white);border-radius:16px;overflow:hidden;margin:8px 0;box-shadow:0 4px 24px rgba(0,0,0,0.18);">
   <div class="client-banner" id="clientBanner"></div>
   <div class="progress-wrap"><div class="progress-bar" id="progressBar" style="width:0%"></div></div>
-  <div class="dist-alert" id="distAlert">📍 <span id="distAlertMsg"></span></div>
-  <div class="dist-ok" id="distOk">✓ <span id="distOkMsg"></span></div>
+
   <div class="bloco-nav" id="blocoNav">
     <div class="bloco-pill active" onclick="navegarBloco('bloco1',this)">1 Negociação</div>
     <div class="bloco-pill" onclick="navegarBloco('bloco2',this)">2 Digital</div>
@@ -1143,10 +1142,7 @@ function getVal(id) {
 }
 
 function submitForm() {
-  verificarDistancia(function(permitido) {
-    if (!permitido) return; // bloqueado — alerta já apareceu
-    _doSubmit();
-  });
+  _doSubmit();
 }
 
 function _doSubmit() {
@@ -1158,9 +1154,7 @@ function _doSubmit() {
     timestamp: new Date().toISOString(),
     desenvolvedor: window._devNome || '',
     rota: rotaSelecionada,
-    dev_lat: posAtual ? posAtual.lat : '',
-    dev_lng: posAtual ? posAtual.lng : '',
-    dev_precisao: posAtual ? posAtual.acc : '',
+
     pv: clienteAtual.id,
     cliente: clienteAtual.nome,
     cnpj: clienteAtual.cnpj,
@@ -1235,13 +1229,6 @@ function _doSubmit() {
       .then(function() { sendData(); })
       .catch(function() { sendData(); });
   } catch(e) { sendData(); }
-
-  // Também via img tag em paralelo
-  try {
-    var img = new Image();
-    img.onload = img.onerror = function() { sendData(); };
-    img.src = urlWithData + '&t=' + Date.now();
-  } catch(e) {}
 }
 
 function nextClient() { showStep('step1'); renderList(); }
@@ -2200,50 +2187,9 @@ function abrirMaps(lat, lng, nome) {
 }
 
 // ── GEOLOCALIZAÇÃO E BLOQUEIO POR DISTÂNCIA ──────────────────────────────────
-const RAIO_MAX_METROS = 300;
-let posAtual = null;
-let geoWatchId = null;
+// Geolocalização — desativada nesta versão, será reativada em versão futura
 
-function calcDistancia(lat1, lng1, lat2, lng2) {
-  const R = 6371000;
-  const dLat = (lat2 - lat1) * Math.PI / 180;
-  const dLng = (lng2 - lng1) * Math.PI / 180;
-  const a = Math.sin(dLat/2) * Math.sin(dLat/2) +
-    Math.cos(lat1 * Math.PI / 180) * Math.cos(lat2 * Math.PI / 180) *
-    Math.sin(dLng/2) * Math.sin(dLng/2);
-  return R * 2 * Math.atan2(Math.sqrt(a), Math.sqrt(1-a));
-}
-
-function iniciarGeoWatch() {
-  if (!navigator.geolocation) return;
-  geoWatchId = navigator.geolocation.watchPosition(
-    pos => { posAtual = { lat: pos.coords.latitude, lng: pos.coords.longitude, acc: pos.coords.accuracy }; },
-    err => { posAtual = null; },
-    { enableHighAccuracy: true, maximumAge: 10000 }
-  );
-}
-
-function verificarDistancia(callback) {
-  const alertEl = document.getElementById('distAlert');
-  const okEl = document.getElementById('distOk');
-  if (alertEl) alertEl.style.display = 'none';
-  if (okEl) okEl.style.display = 'none';
-
-  // Por ora: registrar localização mas nunca bloquear o envio
-  if (posAtual && clienteAtual && clienteAtual.lat && clienteAtual.lng) {
-    const dist = Math.round(calcDistancia(posAtual.lat, posAtual.lng, clienteAtual.lat, clienteAtual.lng));
-    const distStr = dist >= 1000 ? (dist/1000).toFixed(1) + ' km' : dist + ' m';
-    if (okEl) {
-      okEl.style.display = 'block';
-      document.getElementById('distOkMsg').textContent = 'Você está a ' + distStr + ' do PDV.';
-    }
-  }
-
-  // Sempre libera — bloqueio por raio será ativado após validação em campo
-  callback(true);
-}
-
-loadData(); loadPriceDB(); loadTTCDB(); loadIntelDB(); iniciarGeoWatch();
+loadData(); loadPriceDB(); loadTTCDB(); loadIntelDB();
 
 
 </script>
