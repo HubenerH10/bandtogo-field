@@ -1215,12 +1215,19 @@ function _doSubmit() {
     console.log('Payload Power Automate:', JSON.stringify(payload, null, 2));
   };
 
-  // Enviar para Google Sheets via img tag
+  // Enviar para Google Sheets — múltiplos métodos para máxima compatibilidade
   const GAS_URL = 'https://script.google.com/macros/s/AKfycbz5UnbzjUm2McNytyodZ_I7-vv6Ckv58nK4tBgigQ4IkmW5r8gtoXslj65B1xKmohIxoA/exec';
   const urlWithData = GAS_URL + '?payload=' + encodeURIComponent(JSON.stringify(payload));
-  const img = new Image();
-  img.onload = img.onerror = function() { sendData(); };
-  img.src = urlWithData;
+
+  // Método 1: fetch com no-cors (mais moderno)
+  fetch(urlWithData, { method: 'GET', mode: 'no-cors' })
+    .then(function() { sendData(); })
+    .catch(function() {
+      // Método 2: img tag (fallback)
+      var img = new Image();
+      img.onload = img.onerror = function() { sendData(); };
+      img.src = urlWithData + '&t=' + Date.now();
+    });
 }
 
 function nextClient() { showStep('step1'); renderList(); }
