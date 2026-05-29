@@ -1163,8 +1163,8 @@ function _doSubmit() {
     base_foco: clienteAtual.base_foco,
     ...respostas,
     tabela_negociada: getVal('tabela_negociada'),
-    missao_apresentada: getVal('missao_apresentada'),
-    missao_negociada: getVal('missao_negociada'),
+    missao_apresentada: respostas['missao_apresentada'] || getVal('missao_apresentada_outro') || '',
+    missao_negociada: respostas['missao_negociada'] || getVal('missao_negociada_outro') || '',
     scanntech_sistema: getVal('scanntech_sistema'),
     gelada_detalhe: getVal('gelada_detalhe'),
     preco_detalhe: getVal('preco_detalhe'),
@@ -1221,14 +1221,14 @@ function _doSubmit() {
   }
 
   // Garantir confirmação após 2s independente do resultado do envio
-  setTimeout(sendData, 2000);
+  var _timer = setTimeout(sendData, 2000);
 
-  // Tentar enviar via fetch
+  // Tentar enviar via fetch — cancela o timer se chegar antes
   try {
     fetch(urlWithData, { method: 'GET', mode: 'no-cors' })
-      .then(function() { sendData(); })
-      .catch(function() { sendData(); });
-  } catch(e) { sendData(); }
+      .then(function() { clearTimeout(_timer); sendData(); })
+      .catch(function() { clearTimeout(_timer); sendData(); });
+  } catch(e) { clearTimeout(_timer); sendData(); }
 }
 
 function nextClient() { showStep('step1'); renderList(); }
@@ -1581,6 +1581,24 @@ function renderParciais() {
   if (alerts.length) {
     html += '<div class="parc-card"><div class="parc-card-title" style="color:var(--red)">Atravessadores identificados (' + alerts.length + ')</div>';
     alerts.forEach(function(n) { html += '<div class="parc-alert">' + n + '</div>'; });
+    html += '</div>';
+  }
+
+  // Lista de clientes visitados
+  var visitList = base.filter(function(c) { return visitados[c.id]; });
+  if (visitList.length) {
+    html += '<div class="parc-card"><div class="parc-card-title" style="margin-bottom:10px">Clientes visitados</div>';
+    visitList.forEach(function(c) {
+      var v = visitados[c.id];
+      var ts = v.ts ? new Date(v.ts).toLocaleTimeString('pt-BR', {hour:'2-digit',minute:'2-digit'}) : '';
+      html += '<div style="display:flex;align-items:center;justify-content:space-between;padding:8px 0;border-bottom:1px solid var(--border)">'
+        + '<div>'
+        + '<div style="font-size:13px;font-weight:600">' + c.nome + '</div>'
+        + '<div style="font-size:11px;color:var(--text3)">PV ' + c.id + ' · ' + c.segmento + (ts ? ' · ' + ts : '') + '</div>'
+        + '</div>'
+        + '<span style="font-size:11px;background:var(--green-bg);color:var(--green);padding:3px 8px;border-radius:12px;font-weight:600">✓ Enviado</span>'
+        + '</div>';
+    });
     html += '</div>';
   }
 
@@ -2203,5 +2221,23 @@ if ('serviceWorker' in navigator) {
   });
 }
 </script>
+
+<!-- TELA 4: HISTÓRICO DE VISITAS -->
+<div class="step" id="step4">
+  <div style="background:var(--white);border-radius:16px;margin:8px 0;box-shadow:0 4px 24px rgba(0,0,0,0.18);">
+    <div style="background:var(--red);color:#fff;padding:12px 16px;border-radius:16px 16px 0 0;display:flex;align-items:center;justify-content:space-between">
+      <div>
+        <div style="font-size:16px;font-weight:700">📊 Histórico de Visitas</div>
+        <div style="font-size:11px;opacity:0.8" id="parcData">—</div>
+      </div>
+      <button onclick="exportCSV()" style="padding:6px 12px;background:rgba(255,255,255,0.2);color:#fff;border:1px solid rgba(255,255,255,0.4);border-radius:20px;font-size:11px;font-weight:600;cursor:pointer">⬇ CSV</button>
+    </div>
+    <div id="parciaisContent" style="padding:12px 16px"></div>
+    <div style="padding:12px 16px">
+      <button class="btn-sec" onclick="goToSearch()" style="width:100%">← Voltar para fila</button>
+    </div>
+  </div>
+</div>
+
 </body>
 </html>
