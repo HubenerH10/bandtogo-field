@@ -2229,42 +2229,18 @@ function verificarDistancia(callback) {
   if (alertEl) alertEl.style.display = 'none';
   if (okEl) okEl.style.display = 'none';
 
-  // Se cliente não tem coordenada, libera
-  if (!clienteAtual || !clienteAtual.lat || !clienteAtual.lng) {
-    callback(true);
-    return;
-  }
-
-  // Se não tem posição ainda, pede ao navegador
-  if (!posAtual) {
-    navigator.geolocation.getCurrentPosition(
-      pos => {
-        posAtual = { lat: pos.coords.latitude, lng: pos.coords.longitude, acc: pos.coords.accuracy };
-        verificarDistancia(callback);
-      },
-      err => { callback(true); }, // se recusar, libera
-      { enableHighAccuracy: true, timeout: 8000 }
-    );
-    return;
-  }
-
-  const dist = Math.round(calcDistancia(posAtual.lat, posAtual.lng, clienteAtual.lat, clienteAtual.lng));
-  const distStr = dist >= 1000 ? (dist/1000).toFixed(1) + ' km' : dist + ' m';
-
-  if (dist <= RAIO_MAX_METROS) {
+  // Por ora: registrar localização mas nunca bloquear o envio
+  if (posAtual && clienteAtual && clienteAtual.lat && clienteAtual.lng) {
+    const dist = Math.round(calcDistancia(posAtual.lat, posAtual.lng, clienteAtual.lat, clienteAtual.lng));
+    const distStr = dist >= 1000 ? (dist/1000).toFixed(1) + ' km' : dist + ' m';
     if (okEl) {
       okEl.style.display = 'block';
-      document.getElementById('distOkMsg').textContent = 'Você está a ' + distStr + ' do PDV — dentro do raio permitido.';
+      document.getElementById('distOkMsg').textContent = 'Você está a ' + distStr + ' do PDV.';
     }
-    callback(true);
-  } else {
-    if (alertEl) {
-      alertEl.style.display = 'block';
-      document.getElementById('distAlertMsg').textContent =
-        'Você está a ' + distStr + ' do PDV. Aproxime-se para registrar a visita (raio máximo: ' + RAIO_MAX_METROS + 'm).';
-    }
-    callback(false);
   }
+
+  // Sempre libera — bloqueio por raio será ativado após validação em campo
+  callback(true);
 }
 
 loadData(); loadPriceDB(); loadTTCDB(); loadIntelDB(); iniciarGeoWatch();
