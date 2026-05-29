@@ -483,17 +483,17 @@ body::before{content:'';position:fixed;inset:0;z-index:0;pointer-events:none;
           <input class="cond-input" placeholder="Outra missão não listada..." id="missao_apresentada_outro" oninput="updateProgress()" style="margin-bottom:10px">
           <div class="cond-label">Qual missão foi negociada / aceita?</div>
           <div class="cond-mini-opts" style="margin-bottom:8px">
-            <div class="cond-mini-opt" onclick="setSingle(this,'missao_negociada','Monster Lata')">Monster Lata</div>
-            <div class="cond-mini-opt" onclick="setSingle(this,'missao_negociada','Vodka+Energético')">Vodka+Energético</div>
-            <div class="cond-mini-opt" onclick="setSingle(this,'missao_negociada','Schw Tônica')">Schw Tônica</div>
-            <div class="cond-mini-opt" onclick="setSingle(this,'missao_negociada','Monster Sabores')">Monster Sabores</div>
-            <div class="cond-mini-opt" onclick="setSingle(this,'missao_negociada','KS')">KS</div>
-            <div class="cond-mini-opt" onclick="setSingle(this,'missao_negociada','LS Sabor')">LS Sabor</div>
-            <div class="cond-mini-opt" onclick="setSingle(this,'missao_negociada','LS CC Zero')">LS CC Zero</div>
-            <div class="cond-mini-opt" onclick="setSingle(this,'missao_negociada','RP CC Zero')">RP CC Zero</div>
-            <div class="cond-mini-opt" onclick="setSingle(this,'missao_negociada','KS CC Zero')">KS CC Zero</div>
-            <div class="cond-mini-opt" onclick="setSingle(this,'missao_negociada','Ades Original')">Ades Original</div>
-            <div class="cond-mini-opt" onclick="setSingle(this,'missao_negociada','Não negociada')">Não negociada</div>
+            <div class="cond-mini-opt" onclick="toggleMini(this,'missao_negociada')">Monster Lata</div>
+            <div class="cond-mini-opt" onclick="toggleMini(this,'missao_negociada')">Vodka+Energético</div>
+            <div class="cond-mini-opt" onclick="toggleMini(this,'missao_negociada')">Schw Tônica</div>
+            <div class="cond-mini-opt" onclick="toggleMini(this,'missao_negociada')">Monster Sabores</div>
+            <div class="cond-mini-opt" onclick="toggleMini(this,'missao_negociada')">KS</div>
+            <div class="cond-mini-opt" onclick="toggleMini(this,'missao_negociada')">LS Sabor</div>
+            <div class="cond-mini-opt" onclick="toggleMini(this,'missao_negociada')">LS CC Zero</div>
+            <div class="cond-mini-opt" onclick="toggleMini(this,'missao_negociada')">RP CC Zero</div>
+            <div class="cond-mini-opt" onclick="toggleMini(this,'missao_negociada')">KS CC Zero</div>
+            <div class="cond-mini-opt" onclick="toggleMini(this,'missao_negociada')">Ades Original</div>
+            <div class="cond-mini-opt" onclick="toggleMini(this,'missao_negociada')">Não negociada</div>
           </div>
           <input class="cond-input" placeholder="Outra missão negociada..." id="missao_negociada_outro" oninput="updateProgress()">
         </div>
@@ -1215,19 +1215,30 @@ function _doSubmit() {
     console.log('Payload Power Automate:', JSON.stringify(payload, null, 2));
   };
 
-  // Enviar para Google Sheets — múltiplos métodos para máxima compatibilidade
+  // Enviar para Google Sheets — sendData sempre executa independente do resultado
   const GAS_URL = 'https://script.google.com/macros/s/AKfycbz5UnbzjUm2McNytyodZ_I7-vv6Ckv58nK4tBgigQ4IkmW5r8gtoXslj65B1xKmohIxoA/exec';
   const urlWithData = GAS_URL + '?payload=' + encodeURIComponent(JSON.stringify(payload));
 
-  // Método 1: fetch com no-cors (mais moderno)
-  fetch(urlWithData, { method: 'GET', mode: 'no-cors' })
-    .then(function() { sendData(); })
-    .catch(function() {
-      // Método 2: img tag (fallback)
-      var img = new Image();
-      img.onload = img.onerror = function() { sendData(); };
-      img.src = urlWithData + '&t=' + Date.now();
-    });
+  // Garantir que sendData executa após 2s independente do resultado da chamada
+  var enviado = false;
+  function garantirEnvio() {
+    if (!enviado) { enviado = true; sendData(); }
+  }
+  setTimeout(garantirEnvio, 2000);
+
+  // Tentar enviar via fetch
+  try {
+    fetch(urlWithData, { method: 'GET', mode: 'no-cors' })
+      .then(function() { garantirEnvio(); })
+      .catch(function() { garantirEnvio(); });
+  } catch(e) { garantirEnvio(); }
+
+  // Também via img tag em paralelo
+  try {
+    var img = new Image();
+    img.onload = img.onerror = function() { garantirEnvio(); };
+    img.src = urlWithData + '&t=' + Date.now();
+  } catch(e) {}
 }
 
 function nextClient() { showStep('step1'); renderList(); }
