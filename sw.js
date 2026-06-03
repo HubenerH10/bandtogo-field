@@ -1,6 +1,6 @@
 // BandToGo Field — Service Worker
 // Versão do cache — incrementar ao atualizar os arquivos
-const CACHE_NAME = 'bandtogo-field-v3';
+const CACHE_NAME = 'bandtogo-field-v4';
 
 // Arquivos para cache offline
 const ARQUIVOS_CACHE = [
