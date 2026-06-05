@@ -799,7 +799,7 @@ body::before{content:'';position:fixed;inset:0;z-index:0;pointer-events:none;
     <div class="success-circle">✓</div>
     <div class="success-title">Validação enviada!</div>
     <div class="success-sub" id="successMsg"></div>
-    <div class="success-stats">
+    <div class="success-stats" id="successStats">
       <div class="stat-card">
         <div class="stat-num" id="statVisit">0</div>
         <div class="stat-lbl">Visitados hoje</div>
@@ -807,6 +807,14 @@ body::before{content:'';position:fixed;inset:0;z-index:0;pointer-events:none;
       <div class="stat-card">
         <div class="stat-num" id="statPend">0</div>
         <div class="stat-lbl">Pendentes</div>
+      </div>
+      <div class="stat-card">
+        <div class="stat-num" id="statMes" style="color:var(--blue)">0</div>
+        <div class="stat-lbl">Visitados no mês</div>
+      </div>
+      <div class="stat-card">
+        <div class="stat-num" id="statPctMes" style="color:var(--green)">0%</div>
+        <div class="stat-lbl">Cobertura mês</div>
       </div>
     </div>
     <button class="btn-whatsapp" onclick="shareWhatsApp()">
@@ -881,6 +889,9 @@ async function loadData() {
     const out = await new Response(ds.readable).arrayBuffer();
     CLIENTES = JSON.parse(new TextDecoder().decode(out));
     renderRotas();
+    // Fix nomes pontuais
+    var _fix1201324 = CLIENTES.findIndex(function(c){ return c.id === '1201324'; });
+    if (_fix1201324 >= 0) CLIENTES[_fix1201324].nome = 'Emp\u00f3rio M\u00e1ximos';
   } catch(e) {
     console.error(e);
     document.getElementById('rotaGrid').innerHTML = '<div style="color:red;padding:20px">Erro ao carregar base.</div>';
@@ -1163,8 +1174,21 @@ function _doSubmit() {
     base_foco: clienteAtual.base_foco,
     ...respostas,
     tabela_negociada: getVal('tabela_negociada'),
-    missao_apresentada: respostas['missao_apresentada'] || getVal('missao_apresentada_outro') || '',
-    missao_negociada: respostas['missao_negociada'] || getVal('missao_negociada_outro') || '',
+    missao_apresentada: (function(){
+      var sels = document.querySelectorAll('#cond_missao .cond-mini-opts .cond-mini-opt.sel');
+      var arr = Array.from(sels).map(function(e){ return e.textContent.trim(); });
+      var outro = getVal('missao_apresentada_outro');
+      if (outro) arr.push(outro);
+      return arr;
+    })(),
+    missao_negociada: (function(){
+      var opts = document.querySelectorAll('#cond_missao .cond-mini-opts');
+      var sels = opts.length >= 2 ? opts[1].querySelectorAll('.cond-mini-opt.sel') : [];
+      var arr = Array.from(sels).map(function(e){ return e.textContent.trim(); });
+      var outro = getVal('missao_negociada_outro');
+      if (outro) arr.push(outro);
+      return arr;
+    })(),
     scanntech_sistema: getVal('scanntech_sistema'),
     gelada_detalhe: getVal('gelada_detalhe'),
     preco_detalhe: getVal('preco_detalhe'),
@@ -1206,14 +1230,23 @@ function _doSubmit() {
     visitados[clienteAtual.id] = { ts: payload.timestamp, resumo: _respostas };
     localStorage.setItem('visitados_jun26', JSON.stringify(visitados));
     var minhaBase = CLIENTES.filter(function(c) { return c.rota === _rota; });
-    var totalVisit = minhaBase.filter(function(c) { return visitados[c.id]; }).length;
-    var totalPend = minhaBase.filter(function(c) { return !visitados[c.id] && c.base_foco; }).length;
+    var hoje = new Date().toISOString().slice(0,10);
+    var mes  = new Date().toISOString().slice(0,7);
+    var totalHoje = Object.values(visitados).filter(function(v){ return v.ts && v.ts.slice(0,10) === hoje; }).length;
+    var totalMes  = Object.values(visitados).filter(function(v){ return v.ts && v.ts.slice(0,7) === mes; }).length;
+    var baseAtiva = minhaBase.filter(function(c){ return c.base_foco; });
+    var totalPend = baseAtiva.filter(function(c) { return !visitados[c.id]; }).length;
+    var pctMes = baseAtiva.length ? Math.round((totalMes / baseAtiva.length) * 100) : 0;
     var msgEl = document.getElementById('successMsg');
     if (msgEl) msgEl.textContent = _clienteNome + ' — dados registrados.';
     var svEl = document.getElementById('statVisit');
-    if (svEl) svEl.textContent = totalVisit;
+    if (svEl) svEl.textContent = totalHoje;
     var spEl = document.getElementById('statPend');
     if (spEl) spEl.textContent = totalPend;
+    var smEl = document.getElementById('statMes');
+    if (smEl) smEl.textContent = totalMes;
+    var spEl2 = document.getElementById('statPctMes');
+    if (spEl2) spEl2.textContent = pctMes + '%';
     _btn.disabled = false;
     _btn.textContent = 'Enviar validação';
     showStep('step3');
@@ -1554,7 +1587,24 @@ function renderParciais() {
   var parcDataEl = document.getElementById('parcData');
   if (parcDataEl) parcDataEl.textContent = 'Rota ' + rotaSelecionada + ' · Atualizado: ' + new Date().toLocaleTimeString('pt-BR');
 
-  var html = '<div class="parc-card">'
+  var hoje = new Date().toISOString().slice(0,10);
+  var mes  = new Date().toISOString().slice(0,7);
+  var totalHoje = Object.values(visitados).filter(function(v){ return v.ts && v.ts.slice(0,10) === hoje; }).length;
+  var totalMes  = Object.values(visitados).filter(function(v){ return v.ts && v.ts.slice(0,7) === mes; }).length;
+  var baseAtiva2 = base.filter(function(c){ return c.base_foco; });
+  var pctH = baseAtiva2.length ? Math.round((totalHoje/baseAtiva2.length)*100) : 0;
+  var pctM = baseAtiva2.length ? Math.round((totalMes/baseAtiva2.length)*100) : 0;
+
+  var html = '<div class="parc-card" style="background:linear-gradient(135deg,#fff8f0,#fff);border-color:#f5c0ce">'
+    + '<div class="parc-card-title">📅 Acompanhamento de Cobertura</div>'
+    + '<div class="parc-grid">'
+    + '<div class="parc-stat"><div class="parc-num">' + totalHoje + '</div><div class="parc-lbl">Visitados hoje</div></div>'
+    + '<div class="parc-stat"><div class="parc-num" style="color:var(--blue)">' + totalMes + '</div><div class="parc-lbl">Visitados no mês</div></div>'
+    + '<div class="parc-stat"><div class="parc-num" style="color:var(--text2)">' + pctH + '%</div><div class="parc-lbl">Cobertura hoje</div></div>'
+    + '<div class="parc-stat"><div class="parc-num" style="color:var(--green)">' + pctM + '%</div><div class="parc-lbl">Cobertura mês</div></div>'
+    + '</div></div>';
+
+  html += '<div class="parc-card">'
     + '<div class="parc-card-title">Cobertura da Rota <span style="font-size:11px;color:var(--text3)">' + rotaSelecionada + '</span></div>'
     + '<div class="parc-grid">'
     + '<div class="parc-stat"><div class="parc-num">' + visits.length + '</div><div class="parc-lbl">Visitados</div></div>'
