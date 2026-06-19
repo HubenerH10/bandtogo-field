@@ -875,7 +875,16 @@ async function loadPriceDB() {
 }
 let rotaSelecionada = '';
 let clienteAtual = null;
-let visitados = JSON.parse(localStorage.getItem('visitados_jun26') || '{}');
+function getChaveVisitados() {
+  var d = new Date();
+  var ano = d.getFullYear();
+  // Semana ISO: dia do ano / 7
+  var inicio = new Date(ano, 0, 1);
+  var semana = Math.ceil(((d - inicio) / 86400000 + inicio.getDay() + 1) / 7);
+  return 'visitados_' + ano + '_W' + semana;
+}
+var CHAVE_VISITADOS = getChaveVisitados();
+let visitados = JSON.parse(localStorage.getItem(CHAVE_VISITADOS) || '{}');
 let respostas = {};
 
 async function loadData() {
@@ -1152,7 +1161,10 @@ function getVal(id) {
   return el ? el.value : '';
 }
 
+var _enviandoGlobal = false;
 function submitForm() {
+  if (_enviandoGlobal) return; // trava duplo toque
+  _enviandoGlobal = true;
   _doSubmit();
 }
 
@@ -1228,7 +1240,7 @@ function _doSubmit() {
     if (_enviado) return;
     _enviado = true;
     visitados[clienteAtual.id] = { ts: payload.timestamp, resumo: _respostas };
-    localStorage.setItem('visitados_jun26', JSON.stringify(visitados));
+    localStorage.setItem(CHAVE_VISITADOS, JSON.stringify(visitados));
     var minhaBase = CLIENTES.filter(function(c) { return c.rota === _rota; });
     var hoje = new Date().toISOString().slice(0,10);
     var mes  = new Date().toISOString().slice(0,7);
@@ -1249,6 +1261,7 @@ function _doSubmit() {
     if (spEl2) spEl2.textContent = pctMes + '%';
     _btn.disabled = false;
     _btn.textContent = 'Enviar validação';
+    _enviandoGlobal = false;
     showStep('step3');
     window.scrollTo(0, 0);
   }
@@ -1264,7 +1277,7 @@ function _doSubmit() {
   } catch(e) { clearTimeout(_timer); sendData(); }
 }
 
-function nextClient() { showStep('step1'); renderList(); }
+function nextClient() { _enviandoGlobal = false; showStep('step1'); renderList(); }
 
 // ── UTILITÁRIOS ───────────────────────────────────────────────────────────────
 function showStep(id) {
